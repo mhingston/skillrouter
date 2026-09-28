@@ -29,11 +29,12 @@ type Skill struct {
 }
 
 type Snapshot struct {
-	Skills    map[string]Skill
-	Names     []string
-	Shadowed  map[string][]string
-	Signature string
-	Roots     []string
+	Skills        map[string]Skill
+	Names         []string
+	Shadowed      map[string][]string
+	Signature     string
+	DiskSignature string
+	Roots         []string
 }
 
 type frontmatter struct {
@@ -46,20 +47,9 @@ func Load(roots []string, maxFileBytes int64) (*Snapshot, error) {
 	if maxFileBytes <= 0 {
 		maxFileBytes = DefaultMaxFileBytes
 	}
-	cleanRoots := make([]string, 0, len(roots))
-	for _, root := range roots {
-		root = strings.TrimSpace(root)
-		if root == "" {
-			continue
-		}
-		abs, err := filepath.Abs(expandHome(root))
-		if err != nil {
-			return nil, fmt.Errorf("resolve skills root %q: %w", root, err)
-		}
-		cleanRoots = append(cleanRoots, filepath.Clean(abs))
-	}
-	if len(cleanRoots) == 0 {
-		return nil, errors.New("at least one skills directory is required")
+	cleanRoots, err := normalizeRoots(roots)
+	if err != nil {
+		return nil, err
 	}
 
 	s := &Snapshot{
@@ -69,13 +59,6 @@ func Load(roots []string, maxFileBytes int64) (*Snapshot, error) {
 	}
 
 	for _, root := range cleanRoots {
-		info, err := os.Stat(root)
-		if err != nil {
-			return nil, fmt.Errorf("skills root %q: %w", root, err)
-		}
-		if !info.IsDir() {
-			return nil, fmt.Errorf("skills root %q is not a directory", root)
-		}
 		var paths []string
 		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -114,7 +97,87 @@ func Load(roots []string, maxFileBytes int64) (*Snapshot, error) {
 	}
 	sort.Strings(s.Names)
 	s.Signature = signature(s)
+	s.DiskSignature, err = statSignature(cleanRoots)
+	if err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// StatSignature returns a cheap metadata-only fingerprint of the configured
+// catalogue roots. It reads directory entries and file metadata, never file
+// contents. Search can therefore detect index drift without reparsing every
+// SKILL.md on every request.
+func StatSignature(roots []string) (string, error) {
+	cleanRoots, err := normalizeRoots(roots)
+	if err != nil {
+		return "", err
+	}
+	return statSignature(cleanRoots)
+}
+
+func normalizeRoots(roots []string) ([]string, error) {
+	cleanRoots := make([]string, 0, len(roots))
+	for _, root := range roots {
+		root = strings.TrimSpace(root)
+		if root == "" {
+			continue
+		}
+		abs, err := filepath.Abs(expandHome(root))
+		if err != nil {
+			return nil, fmt.Errorf("resolve skills root %q: %w", root, err)
+		}
+		abs = filepath.Clean(abs)
+		info, err := os.Stat(abs)
+		if err != nil {
+			return nil, fmt.Errorf("skills root %q: %w", abs, err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("skills root %q is not a directory", abs)
+		}
+		cleanRoots = append(cleanRoots, abs)
+	}
+	if len(cleanRoots) == 0 {
+		return nil, errors.New("at least one skills directory is required")
+	}
+	return cleanRoots, nil
+}
+
+func statSignature(roots []string) (string, error) {
+	h := sha256.New()
+	for rootIndex, root := range roots {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.Type()&os.ModeSymlink != 0 {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			if !info.Mode().IsRegular() {
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintf(h, "%d\x00%s\x00%d\x00%d\n", rootIndex, filepath.ToSlash(rel), info.Size(), info.ModTime().UnixNano())
+			return nil
+		})
+		if err != nil {
+			return "", fmt.Errorf("fingerprint skills root %q: %w", root, err)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func parseSkill(root, path string, maxFileBytes int64) (Skill, error) {

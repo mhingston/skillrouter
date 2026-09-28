@@ -27,6 +27,7 @@ type CaseResult struct {
 	ID                string   `json:"id"`
 	Query             string   `json:"query"`
 	Relevant          []string `json:"relevant"`
+	Tags              []string `json:"tags,omitempty"`
 	Top               []string `json:"top"`
 	FirstRelevantRank int      `json:"first_relevant_rank,omitempty"`
 	PredictedNoMatch  bool     `json:"predicted_no_match"`
@@ -121,6 +122,7 @@ func Run(s Searcher, cases []Case, limit int) (Report, error) {
 			ID:               c.ID,
 			Query:            c.Query,
 			Relevant:         append([]string(nil), c.Relevant...),
+			Tags:             append([]string(nil), c.Tags...),
 			Top:              top,
 			PredictedNoMatch: len(top) == 0,
 			LatencyMS:        latencyMS,

@@ -24,29 +24,29 @@ type Searcher interface {
 }
 
 type CaseResult struct {
-	ID               string   `json:"id"`
-	Query            string   `json:"query"`
-	Relevant         []string `json:"relevant"`
-	Top              []string `json:"top"`
+	ID                string   `json:"id"`
+	Query             string   `json:"query"`
+	Relevant          []string `json:"relevant"`
+	Top               []string `json:"top"`
 	FirstRelevantRank int      `json:"first_relevant_rank,omitempty"`
-	PredictedNoMatch bool      `json:"predicted_no_match"`
-	LatencyMS        float64  `json:"latency_ms"`
+	PredictedNoMatch  bool     `json:"predicted_no_match"`
+	LatencyMS         float64  `json:"latency_ms"`
 }
 
 type Metrics struct {
-	TotalCases        int     `json:"total_cases"`
-	PositiveCases     int     `json:"positive_cases"`
-	NoMatchCases      int     `json:"no_match_cases"`
-	RecallAt1         float64 `json:"recall_at_1"`
-	RecallAt3         float64 `json:"recall_at_3"`
-	RecallAt5         float64 `json:"recall_at_5"`
-	MRR               float64 `json:"mrr"`
-	NoMatchPrecision  float64 `json:"no_match_precision"`
-	NoMatchRecall     float64 `json:"no_match_recall"`
-	Abstentions       int     `json:"abstentions"`
-	LatencyP50MS      float64 `json:"latency_p50_ms"`
-	LatencyP95MS      float64 `json:"latency_p95_ms"`
-	MeanCandidates    float64 `json:"mean_candidates"`
+	TotalCases       int     `json:"total_cases"`
+	PositiveCases    int     `json:"positive_cases"`
+	NoMatchCases     int     `json:"no_match_cases"`
+	RecallAt1        float64 `json:"recall_at_1"`
+	RecallAt3        float64 `json:"recall_at_3"`
+	RecallAt5        float64 `json:"recall_at_5"`
+	MRR              float64 `json:"mrr"`
+	NoMatchPrecision float64 `json:"no_match_precision"`
+	NoMatchRecall    float64 `json:"no_match_recall"`
+	Abstentions      int     `json:"abstentions"`
+	LatencyP50MS     float64 `json:"latency_p50_ms"`
+	LatencyP95MS     float64 `json:"latency_p95_ms"`
+	MeanCandidates   float64 `json:"mean_candidates"`
 }
 
 type Report struct {

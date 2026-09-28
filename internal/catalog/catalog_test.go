@@ -51,3 +51,26 @@ func writeSkill(t *testing.T, root, name, description, body string) {
 		t.Fatal(err)
 	}
 }
+
+func TestStatSignatureChangesWhenResourceChanges(t *testing.T) {
+	root := t.TempDir()
+	writeSkill(t, root, "review", "Review", "body")
+	resource := filepath.Join(root, "review", "reference.md")
+	if err := os.WriteFile(resource, []byte("one"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := StatSignature([]string{root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(resource, []byte("two-and-longer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	after, err := StatSignature([]string{root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("expected resource change to alter disk signature")
+	}
+}

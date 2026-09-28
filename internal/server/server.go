@@ -194,12 +194,12 @@ func (e *Engine) reindex(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) 
 }
 
 func (e *Engine) isStale() (bool, error) {
-	current, err := catalog.Load(e.roots, e.maxBytes)
+	current, err := catalog.StatSignature(e.roots)
 	if err != nil {
 		return false, err
 	}
 	e.mu.RLock()
-	loaded := e.snapshot.Signature
+	loaded := e.snapshot.DiskSignature
 	e.mu.RUnlock()
-	return current.Signature != loaded, nil
+	return current != loaded, nil
 }

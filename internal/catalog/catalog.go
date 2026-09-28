@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -181,14 +182,7 @@ func statSignature(roots []string) (string, error) {
 }
 
 func parseSkill(root, path string, maxFileBytes int64) (Skill, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return Skill{}, err
-	}
-	if !info.Mode().IsRegular() || info.Size() > maxFileBytes {
-		return Skill{}, fmt.Errorf("invalid SKILL.md size or type")
-	}
-	rawBytes, err := os.ReadFile(path)
+	rawBytes, err := readBoundedFileWithin(root, path, maxFileBytes)
 	if err != nil {
 		return Skill{}, err
 	}
@@ -302,26 +296,7 @@ func (s *Snapshot) ReadResource(skillName, resource string, maxFileBytes int64) 
 		return nil, fmt.Errorf("resource %q is not declared by the discovered skill", resource)
 	}
 	path := filepath.Join(skill.Dir, clean)
-	resolvedDir, err := filepath.EvalSymlinks(skill.Dir)
-	if err != nil {
-		return nil, err
-	}
-	resolvedPath, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return nil, err
-	}
-	rel, err := filepath.Rel(resolvedDir, resolvedPath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return nil, fmt.Errorf("resource path escapes skill directory")
-	}
-	info, err := os.Stat(resolvedPath)
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() || info.Size() > maxFileBytes {
-		return nil, fmt.Errorf("resource is not a readable regular file within size limit")
-	}
-	content, err := os.ReadFile(resolvedPath)
+	content, err := readBoundedFileWithin(skill.Dir, path, maxFileBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -329,6 +304,83 @@ func (s *Snapshot) ReadResource(skillName, resource string, maxFileBytes int64) 
 		return nil, fmt.Errorf("resource is not valid UTF-8 text")
 	}
 	return content, nil
+}
+
+// readBoundedFileWithin opens one regular file beneath base, verifies that the
+// file descriptor still identifies the current in-bound path after opening,
+// and reads at most maxFileBytes+1 bytes. The post-open identity check closes
+// the common path/symlink swap race without relying on OS-specific O_NOFOLLOW.
+func readBoundedFileWithin(base, path string, maxFileBytes int64) ([]byte, error) {
+	if maxFileBytes <= 0 {
+		maxFileBytes = DefaultMaxFileBytes
+	}
+	resolvedBase, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		return nil, err
+	}
+	resolvedBefore, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, err
+	}
+	if !pathWithin(resolvedBase, resolvedBefore) {
+		return nil, fmt.Errorf("file path escapes allowed directory")
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	openedInfo, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !openedInfo.Mode().IsRegular() {
+		return nil, fmt.Errorf("file is not regular")
+	}
+
+	// Re-resolve after opening. If a path component was swapped to a symlink
+	// during open, either containment or identity will no longer match.
+	resolvedBaseAfter, err := filepath.EvalSymlinks(base)
+	if err != nil {
+		return nil, err
+	}
+	resolvedAfter, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, err
+	}
+	if resolvedBaseAfter != resolvedBase || !pathWithin(resolvedBaseAfter, resolvedAfter) {
+		return nil, fmt.Errorf("file path changed while opening")
+	}
+	currentInfo, err := os.Stat(resolvedAfter)
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(openedInfo, currentInfo) {
+		return nil, fmt.Errorf("file changed while opening")
+	}
+
+	limit := maxFileBytes + 1
+	if limit <= 0 {
+		limit = maxFileBytes
+	}
+	content, err := io.ReadAll(io.LimitReader(file, limit))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > maxFileBytes {
+		return nil, fmt.Errorf("file exceeds %d byte limit", maxFileBytes)
+	}
+	return content, nil
+}
+
+func pathWithin(base, target string) bool {
+	rel, err := filepath.Rel(base, target)
+	if err != nil || filepath.IsAbs(rel) {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func signature(s *Snapshot) string {

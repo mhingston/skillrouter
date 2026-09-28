@@ -1,0 +1,40 @@
+name: Retrieval evaluation
+
+on:
+  pull_request:
+    paths:
+      - 'cmd/skillrouter-eval/**'
+      - 'internal/catalog/**'
+      - 'internal/search/**'
+      - 'internal/eval/**'
+      - 'eval/**'
+      - '.github/workflows/retrieval-eval.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lexical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: mhingston/agent-skills
+          ref: 26a0da162e69af259ecb22813a960b1188a4519f
+          path: _eval/agent-skills
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - name: Run lexical retrieval corpus
+        run: |
+          go run ./cmd/skillrouter-eval \
+            --skills-dir _eval/agent-skills \
+            --corpus eval/corpus.jsonl \
+            --json-out eval-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexical-retrieval-eval
+          path: eval-results.json

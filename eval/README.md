@@ -48,6 +48,34 @@ The CI workflow pins the evaluated skill catalogue to commit:
 
 This prevents catalogue drift from being mistaken for a retrieval change.
 
+## Current lexical baseline
+
+Against the pinned catalogue, the 74-case corpus currently produces:
+
+| Metric | Result |
+| --- | ---: |
+| Positive cases | 62 |
+| No-match cases | 12 |
+| Recall@1 | 0.887 |
+| Recall@3 | 0.919 |
+| Recall@5 | 0.952 |
+| MRR | 0.916 |
+| No-match precision | 0.000 |
+| No-match recall | 0.000 |
+| Abstentions | 0 |
+| p50 search latency | 0.055 ms |
+| p95 search latency | 0.067 ms |
+
+The three Recall@5 misses are deliberately lexically displaced cases for
+`code-research`, `agent-readiness`, and `memory-recall`.
+
+The baseline shows two distinct gaps:
+
+1. **Semantic recall:** lexical retrieval is strong on direct/paraphrased tasks but misses some low-overlap intents.
+2. **Abstention:** the current retriever always fills the requested candidate limit, even for unrelated tasks. A future abstention mechanism must be calibrated against both positive and no-match cases rather than added as an arbitrary score threshold.
+
+Do not turn these numbers into release gates yet. The corpus is a development set; establish a protected holdout before tuning weights or abstention thresholds repeatedly.
+
 ## Run locally
 
 ```bash

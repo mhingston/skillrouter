@@ -61,6 +61,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, testCase := range cases {
+		for _, name := range testCase.Relevant {
+			if _, ok := snapshot.Skills[name]; !ok {
+				log.Fatalf("corpus case %s references unknown skill %q", testCase.ID, name)
+			}
+		}
+	}
 	var embedder search.Embedder
 	if *embeddingURL != "" || *embeddingModel != "" {
 		if *embeddingURL == "" || *embeddingModel == "" {

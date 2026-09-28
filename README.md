@@ -85,6 +85,22 @@ Then configure the binary as a normal **stdio MCP server** in any MCP-capable ha
 
 There is deliberately no Claude/Codex/Pi/Copilot-specific setup logic inside SkillRouter.
 
+### Optional one-skill bootstrap
+
+MCP clients differ in how reliably they expose server instructions or resources to the model. If a harness does not naturally discover SkillRouter, install only the bundled [`find-skills`](skills/find-skills/SKILL.md) bootstrap skill using that harness's normal Agent Skills mechanism.
+
+That keeps the native discovery cost constant:
+
+```text
+native harness context
+        ↓
+one tiny find-skills router
+        ↓
+SkillRouter searches the external catalogue
+```
+
+The same bootstrap `SKILL.md` is used everywhere; SkillRouter does not detect a harness, choose an install path, or copy it automatically.
+
 ## Semantic retrieval
 
 The default local retriever is deterministic weighted lexical search over skill name, description and a bounded body excerpt. To enable hybrid semantic retrieval, configure any endpoint implementing the OpenAI embeddings request/response shape:

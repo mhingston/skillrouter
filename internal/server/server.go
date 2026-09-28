@@ -31,6 +31,7 @@ SkillRouter is harness agnostic. It does not install skills into Claude, Codex, 
 
 type Engine struct {
 	mu       sync.RWMutex
+	reloadMu sync.Mutex
 	roots    []string
 	maxBytes int64
 	embedder search.Embedder
@@ -39,6 +40,9 @@ type Engine struct {
 }
 
 func NewEngine(roots []string, maxBytes int64, embedder search.Embedder) (*Engine, error) {
+	if maxBytes <= 0 {
+		maxBytes = catalog.DefaultMaxFileBytes
+	}
 	e := &Engine{roots: roots, maxBytes: maxBytes, embedder: embedder}
 	if err := e.reload(); err != nil {
 		return nil, err
@@ -47,6 +51,9 @@ func NewEngine(roots []string, maxBytes int64, embedder search.Embedder) (*Engin
 }
 
 func (e *Engine) reload() error {
+	e.reloadMu.Lock()
+	defer e.reloadMu.Unlock()
+
 	snapshot, err := catalog.Load(e.roots, e.maxBytes)
 	if err != nil {
 		return err
@@ -104,6 +111,7 @@ type healthOutput struct {
 	SearchMode       string              `json:"search_mode"`
 	EmbeddingBackend string              `json:"embedding_backend,omitempty"`
 	SemanticError    string              `json:"semantic_error,omitempty"`
+	DriftError       string              `json:"drift_error,omitempty"`
 	Shadowed         map[string][]string `json:"shadowed,omitempty"`
 }
 
@@ -137,7 +145,11 @@ func (e *Engine) searchSkills(_ context.Context, _ *mcp.CallToolRequest, input s
 	if err != nil {
 		return nil, searchOutput{}, err
 	}
-	stale, _ := e.isStale()
+	stale, driftErr := e.isStale()
+	if driftErr != nil {
+		stale = true
+		degraded = joinDegraded(degraded, "catalogue drift check failed: "+driftErr.Error())
+	}
 	return nil, searchOutput{Candidates: candidates, Mode: mode, Stale: stale, Degraded: degraded}, nil
 }
 
@@ -166,9 +178,13 @@ func (e *Engine) health(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (
 	e.mu.RLock()
 	snapshot, idx := e.snapshot, e.index
 	e.mu.RUnlock()
-	stale, err := e.isStale()
-	if err != nil {
-		return nil, healthOutput{}, err
+	stale, driftErr := e.isStale()
+	status := "ok"
+	driftMessage := ""
+	if driftErr != nil {
+		stale = true
+		status = "degraded"
+		driftMessage = driftErr.Error()
 	}
 	mode := "lexical"
 	backend := ""
@@ -176,7 +192,10 @@ func (e *Engine) health(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (
 		mode = "hybrid"
 		backend = idx.EmbeddingID()
 	}
-	return nil, healthOutput{Status: "ok", Skills: len(snapshot.Skills), Roots: append([]string(nil), snapshot.Roots...), Stale: stale, SearchMode: mode, EmbeddingBackend: backend, SemanticError: idx.SemanticError(), Shadowed: snapshot.Shadowed}, nil
+	if idx.SemanticError() != "" {
+		status = "degraded"
+	}
+	return nil, healthOutput{Status: status, Skills: len(snapshot.Skills), Roots: append([]string(nil), snapshot.Roots...), Stale: stale, SearchMode: mode, EmbeddingBackend: backend, SemanticError: idx.SemanticError(), DriftError: driftMessage, Shadowed: snapshot.Shadowed}, nil
 }
 
 func (e *Engine) reindex(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, reindexOutput, error) {
@@ -202,4 +221,14 @@ func (e *Engine) isStale() (bool, error) {
 	loaded := e.snapshot.DiskSignature
 	e.mu.RUnlock()
 	return current != loaded, nil
+}
+
+func joinDegraded(current, next string) string {
+	if current == "" {
+		return next
+	}
+	if next == "" {
+		return current
+	}
+	return current + "; " + next
 }

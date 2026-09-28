@@ -5,7 +5,7 @@
 
 **Keep large Agent Skill catalogues out of recurring prompt context. Retrieve only the skills a task actually needs.**
 
-SkillRouter is a small, harness-agnostic MCP server for on-demand [Agent Skills](https://agentskills.io/) retrieval. Point it at a directory containing tens or hundreds of `SKILL.md` files, expose SkillRouter to your MCP client, and let the agent search the catalogue before loading one selected skill.
+SkillRouter is a small, harness-agnostic MCP server for on-demand Agent Skills retrieval. Point it at a directory containing tens or hundreds of `SKILL.md` files, expose SkillRouter to your MCP client, and let the agent search the catalogue before loading one selected skill.
 
 It is designed for Claude Code, Codex, Pi, Copilot, OpenCode, and other MCP-capable agent harnesses without making any of them part of SkillRouter's core.
 

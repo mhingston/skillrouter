@@ -29,7 +29,7 @@ No-match metrics intentionally use **zero returned candidates** as the current a
 
 ## Corpus design
 
-The initial corpus is manually curated against the real `mhingston/agent-skills` catalogue and emphasises boundaries that are easy to confuse:
+The corpus is manually curated against the real `mhingston/agent-skills` catalogue and emphasises boundaries that are easy to confuse:
 
 - `review` vs `review-calibration`
 - `codebase-walkthrough` vs `project-context` vs `repository-ontology`
@@ -96,3 +96,7 @@ go run ./cmd/skillrouter-eval \
 ```
 
 Do not tune retrieval against this corpus indefinitely. Once it starts driving implementation decisions, split out a protected holdout set or add newly observed production queries before changing thresholds/weights.
+
+## Harness-specific task text
+
+The evaluator and routing contract are harness agnostic. Individual catalogue skills may still target a particular tool or harness (for example the `lsp-config` case mentions Copilot CLI because that is the skill's domain). Such task text does not make the evaluator or SkillRouter integration harness-specific; it is simply content being routed.

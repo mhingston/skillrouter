@@ -74,3 +74,49 @@ func TestStatSignatureChangesWhenResourceChanges(t *testing.T) {
 		t.Fatal("expected resource change to alter disk signature")
 	}
 }
+
+func TestReadResourceRejectsSymlinkSwapAfterDiscovery(t *testing.T) {
+	root := t.TempDir()
+	writeSkill(t, root, "review", "Review", "body")
+	resource := filepath.Join(root, "review", "reference.md")
+	if err := os.WriteFile(resource, []byte("inside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load([]string{root}, DefaultMaxFileBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "outside.md")
+	if err := os.WriteFile(outside, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(resource); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, resource); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := s.ReadResource("review", "reference.md", DefaultMaxFileBytes); err == nil {
+		t.Fatal("expected symlink swap to be rejected")
+	}
+}
+
+func TestReadResourceNormalizesNonPositiveLimit(t *testing.T) {
+	root := t.TempDir()
+	writeSkill(t, root, "review", "Review", "body")
+	resource := filepath.Join(root, "review", "reference.md")
+	if err := os.WriteFile(resource, []byte("inside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load([]string{root}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ReadResource("review", "reference.md", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "inside" {
+		t.Fatalf("content=%q", got)
+	}
+}

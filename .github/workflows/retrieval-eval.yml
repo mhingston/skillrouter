@@ -8,6 +8,8 @@ on:
       - 'internal/search/**'
       - 'internal/eval/**'
       - 'eval/**'
+      - 'go.mod'
+      - 'go.sum'
       - '.github/workflows/retrieval-eval.yml'
   workflow_dispatch:
 

@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	sreval "github.com/mhingston/skillrouter/internal/eval"
 	"github.com/mhingston/skillrouter/internal/catalog"
 	"github.com/mhingston/skillrouter/internal/embed"
+	sreval "github.com/mhingston/skillrouter/internal/eval"
 	"github.com/mhingston/skillrouter/internal/search"
 )
 

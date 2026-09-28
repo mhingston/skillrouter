@@ -52,3 +52,29 @@ func TestRunComputesRetrievalAndNoMatchMetrics(t *testing.T) {
 		t.Fatalf("no-match metrics=%+v", report.Metrics)
 	}
 }
+
+type degradedSearcher struct{}
+
+func (degradedSearcher) Search(string, int) ([]search.Candidate, string, string, error) {
+	return nil, "lexical", "embedding backend unavailable", nil
+}
+
+func TestLoadJSONLRequiresExplicitRelevantArray(t *testing.T) {
+	_, err := LoadJSONL(strings.NewReader("{\"id\":\"a\",\"query\":\"one\"}\n"))
+	if err == nil {
+		t.Fatal("expected missing relevant field to fail")
+	}
+}
+
+func TestRunRejectsDegradedRetrieval(t *testing.T) {
+	_, err := Run(degradedSearcher{}, []Case{{ID: "a", Query: "q", Relevant: []string{}}}, 5)
+	if err == nil {
+		t.Fatal("expected degraded retrieval to fail evaluation")
+	}
+}
+
+func TestPercentileUsesNearestRank(t *testing.T) {
+	if got := percentile([]float64{1, 100}, 0.95); got != 100 {
+		t.Fatalf("p95=%v", got)
+	}
+}

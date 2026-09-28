@@ -63,10 +63,10 @@ Against the pinned catalogue, the 74-case corpus currently produces:
 | No-match precision | 0.000 |
 | No-match recall | 0.000 |
 | Abstentions | 0 |
-| p50 search latency | 0.055 ms |
-| p95 search latency | 0.067 ms |
+| p50 search latency | 0.067 ms* |
+| p95 search latency | 0.092 ms* |
 
-The three Recall@5 misses are deliberately lexically displaced cases for
+\*Latency is an observed GitHub Actions sample, not a portability or release gate.\n\nThe three Recall@5 misses are deliberately lexically displaced cases for
 `code-research`, `agent-readiness`, and `memory-recall`.
 
 The baseline shows two distinct gaps:

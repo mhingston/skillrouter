@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"time"
 
@@ -67,6 +68,14 @@ func LoadJSONL(r io.Reader) ([]Case, error) {
 		if len(raw) == 0 {
 			continue
 		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &fields); err != nil {
+			return nil, fmt.Errorf("corpus line %d: %w", line, err)
+		}
+		relevantRaw, ok := fields["relevant"]
+		if !ok || string(relevantRaw) == "null" {
+			return nil, fmt.Errorf("corpus line %d: relevant must be an explicit array, use [] for no-match", line)
+		}
 		var c Case
 		if err := json.Unmarshal(raw, &c); err != nil {
 			return nil, fmt.Errorf("corpus line %d: %w", line, err)
@@ -104,10 +113,13 @@ func Run(s Searcher, cases []Case, limit int) (Report, error) {
 
 	for _, c := range cases {
 		start := time.Now()
-		candidates, _, _, err := s.Search(c.Query, limit)
+		candidates, _, degraded, err := s.Search(c.Query, limit)
 		elapsed := time.Since(start)
 		if err != nil {
 			return Report{}, fmt.Errorf("case %s: %w", c.ID, err)
+		}
+		if degraded != "" {
+			return Report{}, fmt.Errorf("case %s: retrieval degraded: %s", c.ID, degraded)
 		}
 
 		top := make([]string, len(candidates))
@@ -115,14 +127,14 @@ func Run(s Searcher, cases []Case, limit int) (Report, error) {
 			top[i] = candidate.Name
 		}
 		totalCandidates += len(top)
-		latencyMS := float64(elapsed.Microseconds()) / 1000
+		latencyMS := float64(elapsed.Nanoseconds()) / 1e6
 		latencies = append(latencies, latencyMS)
 
 		result := CaseResult{
 			ID:               c.ID,
 			Query:            c.Query,
-			Relevant:         append([]string(nil), c.Relevant...),
-			Tags:             append([]string(nil), c.Tags...),
+			Relevant:         append([]string{}, c.Relevant...),
+			Tags:             append([]string{}, c.Tags...),
 			Top:              top,
 			PredictedNoMatch: len(top) == 0,
 			LatencyMS:        latencyMS,
@@ -213,6 +225,12 @@ func percentile(values []float64, p float64) float64 {
 	if p >= 1 {
 		return values[len(values)-1]
 	}
-	index := int(float64(len(values)-1) * p)
-	return values[index]
+	rank := int(math.Ceil(p*float64(len(values)))) - 1
+	if rank < 0 {
+		rank = 0
+	}
+	if rank >= len(values) {
+		rank = len(values) - 1
+	}
+	return values[rank]
 }

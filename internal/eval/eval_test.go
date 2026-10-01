@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -76,5 +77,27 @@ func TestRunRejectsDegradedRetrieval(t *testing.T) {
 func TestPercentileUsesNearestRank(t *testing.T) {
 	if got := percentile([]float64{1, 100}, 0.95); got != 100 {
 		t.Fatalf("p95=%v", got)
+	}
+}
+
+func TestAggregateReportOmitsCaseDetails(t *testing.T) {
+	report := Report{
+		Metrics: Metrics{TotalCases: 1, RecallAt1: 1},
+		Cases: []CaseResult{{
+			ID:       "holdout-001",
+			Query:    "secret query",
+			Relevant: []string{"secret-label"},
+			Top:      []string{"secret-ranking"},
+		}},
+	}
+
+	encoded, err := json.Marshal(Aggregate(report))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"\"cases\":", "holdout-001", "secret query", "secret-label", "secret-ranking"} {
+		if strings.Contains(string(encoded), forbidden) {
+			t.Fatalf("aggregate report leaked %q: %s", forbidden, encoded)
+		}
 	}
 }

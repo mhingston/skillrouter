@@ -56,6 +56,16 @@ type Report struct {
 	Cases   []CaseResult `json:"cases"`
 }
 
+// AggregateReport is safe to publish for a protected holdout. It deliberately
+// excludes queries, labels, rankings, tags, and per-case failures.
+type AggregateReport struct {
+	Metrics Metrics `json:"metrics"`
+}
+
+func Aggregate(report Report) AggregateReport {
+	return AggregateReport{Metrics: report.Metrics}
+}
+
 func LoadJSONL(r io.Reader) ([]Case, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)

@@ -27,6 +27,23 @@ The evaluator reports:
 
 No-match metrics intentionally use **zero returned candidates** as the current abstention contract. If SkillRouter later introduces an explicit threshold or abstention score, the corpus can stay unchanged while the evaluator adapts.
 
+## Development and protected sets
+
+The evaluation workflow uses two deliberately different sets:
+
+| Set | Purpose | When it runs | Reporting |
+| --- | --- | --- | --- |
+| `corpus.jsonl` | Development and diagnosis | Pull requests and local iteration | Full per-case rankings and misses |
+| `holdout.jsonl` | Final comparison after choosing a candidate | After merge to `main` or an explicitly approved dispatch | Aggregate metrics only |
+
+The protected holdout contains 12 separately authored cases: eight positive routing cases and four no-match cases. Its IDs are opaque, it has no exact query or ID overlap with the development corpus, and its content hash, size, catalogue revision, reporting policy, and owner are pinned in `holdout-manifest.json`.
+
+The holdout owner is **@mhingston**. `CODEOWNERS` routes changes to the corpus, manifest, reporting code, and workflow to that owner. Repository branch protection should require Code Owner approval, and the `protected-evaluation` GitHub environment should require owner approval before manual runs.
+
+Use the holdout only after implementation choices have been made from development evidence. Do not use individual holdout failures to tune weights, queries, embeddings, or future abstention thresholds. If case-level data is exposed during debugging, rotate the affected cases and update the manifest hash.
+
+This is leakage-resistant process protection, not secrecy: the repository is public, so the corpus is inspectable. The controls prevent routine PR output and artifacts from turning the holdout into another tuning set. If confidentiality is required later, keep the corpus in access-controlled storage and inject it into the same aggregate-only workflow.
+
 ## Corpus design
 
 The corpus is manually curated against the real `mhingston/agent-skills` catalogue and emphasises boundaries that are easy to confuse:
@@ -66,7 +83,9 @@ Against the pinned catalogue, the 74-case corpus currently produces:
 | p50 search latency | 0.067 ms* |
 | p95 search latency | 0.092 ms* |
 
-\*Latency is an observed GitHub Actions sample, not a portability or release gate.\n\nThe three Recall@5 misses are deliberately lexically displaced cases for
+\*Latency is an observed GitHub Actions sample, not a portability or release gate.
+
+The three Recall@5 misses are deliberately lexically displaced cases for
 `code-research`, `agent-readiness`, and `memory-recall`.
 
 The baseline shows two distinct gaps:
@@ -74,7 +93,23 @@ The baseline shows two distinct gaps:
 1. **Semantic recall:** lexical retrieval is strong on direct/paraphrased tasks but misses some low-overlap intents.
 2. **Abstention:** the current retriever always fills the requested candidate limit, even for unrelated tasks. A future abstention mechanism must be calibrated against both positive and no-match cases rather than added as an arbitrary score threshold.
 
-Do not turn these numbers into release gates yet. The corpus is a development set; establish a protected holdout before tuning weights or abstention thresholds repeatedly.
+Do not turn these numbers into release gates yet. In particular, the holdout records the current zero-abstention behavior; it does not define or implement an abstention threshold.
+
+The current aggregate-only lexical holdout snapshot is:
+
+| Metric | Result |
+| --- | ---: |
+| Positive cases | 8 |
+| No-match cases | 4 |
+| Recall@1 | 0.750 |
+| Recall@3 | 0.875 |
+| Recall@5 | 1.000 |
+| MRR | 0.844 |
+| No-match precision | 0.000 |
+| No-match recall | 0.000 |
+| Abstentions | 0 |
+
+Only aggregate metrics are retained; case-level holdout diagnostics are not published.
 
 ## Run locally
 
@@ -95,7 +130,17 @@ go run ./cmd/skillrouter-eval \
   --corpus eval/corpus.jsonl
 ```
 
-Do not tune retrieval against this corpus indefinitely. Once it starts driving implementation decisions, split out a protected holdout set or add newly observed production queries before changing thresholds/weights.
+Use the development corpus for iteration, and add newly observed production queries there before changing thresholds or weights. Reserve the protected set for final comparisons.
+
+Run the holdout locally only for a final comparison, and keep its output aggregate-only:
+
+```bash
+go run ./cmd/skillrouter-eval \
+  --skills-dir /path/to/agent-skills \
+  --corpus eval/holdout.jsonl \
+  --aggregate-only \
+  --json-out holdout-results.json
+```
 
 ## Harness-specific task text
 

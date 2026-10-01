@@ -2,3 +2,4 @@
 *.log
 skillrouter
 coverage.out
+_eval/

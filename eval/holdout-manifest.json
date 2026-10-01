@@ -3,6 +3,8 @@
   "owner": "@mhingston",
   "catalog_commit": "26a0da162e69af259ecb22813a960b1188a4519f",
   "case_count": 12,
+  "positive_cases": 8,
+  "no_match_cases": 4,
   "corpus_sha256": "a66e05a0f8df79e7148351519621884225b70a158f8fac2e1050726c507642cf",
   "reporting": "aggregate-only"
 }

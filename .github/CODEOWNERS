@@ -1,5 +1,6 @@
 # Evaluation protection is owned by the repository maintainer. Branch
 # protection must require Code Owner approval for this to be enforced.
+/.github/CODEOWNERS                     @mhingston
 /eval/holdout.jsonl                    @mhingston
 /eval/holdout-manifest.json            @mhingston
 /eval/README.md                        @mhingston

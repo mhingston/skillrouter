@@ -17,6 +17,8 @@ type holdoutManifest struct {
 	Owner         string `json:"owner"`
 	CatalogCommit string `json:"catalog_commit"`
 	CaseCount     int    `json:"case_count"`
+	PositiveCases int    `json:"positive_cases"`
+	NoMatchCases  int    `json:"no_match_cases"`
 	CorpusSHA256  string `json:"corpus_sha256"`
 	Reporting     string `json:"reporting"`
 }
@@ -61,6 +63,12 @@ func TestProtectedHoldoutContract(t *testing.T) {
 	if len(holdout) < 10 || len(holdout) > 20 {
 		t.Fatalf("protected holdout must remain small (10-20 cases), got %d", len(holdout))
 	}
+	if manifest.PositiveCases != 8 || manifest.NoMatchCases != 4 {
+		t.Fatalf("holdout balance must remain 8 positive / 4 no-match, manifest=%d/%d", manifest.PositiveCases, manifest.NoMatchCases)
+	}
+	if manifest.PositiveCases+manifest.NoMatchCases != manifest.CaseCount {
+		t.Fatalf("manifest class counts do not sum to case_count")
+	}
 
 	developmentRaw, err := os.ReadFile("corpus.jsonl")
 	if err != nil {
@@ -90,7 +98,8 @@ func TestProtectedHoldoutContract(t *testing.T) {
 			noMatch++
 		}
 	}
-	if noMatch < 3 {
-		t.Fatalf("holdout needs at least three no-match cases, got %d", noMatch)
+	positive := len(holdout) - noMatch
+	if positive != manifest.PositiveCases || noMatch != manifest.NoMatchCases {
+		t.Fatalf("holdout balance=%d positive/%d no-match, manifest=%d/%d", positive, noMatch, manifest.PositiveCases, manifest.NoMatchCases)
 	}
 }

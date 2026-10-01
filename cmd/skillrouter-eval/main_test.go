@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/mhingston/skillrouter/internal/catalog"
 	sreval "github.com/mhingston/skillrouter/internal/eval"
 )
 
@@ -59,5 +61,28 @@ func TestAggregateOnlySummaryOmitsCaseDiagnostics(t *testing.T) {
 		if strings.Contains(output.String(), forbidden) {
 			t.Fatalf("aggregate-only summary leaked %q: %s", forbidden, output.String())
 		}
+	}
+}
+
+func TestAggregateOnlyRedactsValidationFailure(t *testing.T) {
+	detailed := validateRelevantSkills(
+		[]sreval.Case{{ID: "holdout-001", Relevant: []string{"protected-label"}}},
+		map[string]catalog.Skill{},
+	)
+	if detailed == nil {
+		t.Fatal("expected validation failure")
+	}
+
+	got := outputError(detailed, true, "protected corpus validation failed")
+	for _, forbidden := range []string{"holdout-001", "protected-label"} {
+		if strings.Contains(got.Error(), forbidden) {
+			t.Fatalf("aggregate-only error leaked %q: %s", forbidden, got)
+		}
+	}
+	if got.Error() != "protected corpus validation failed" {
+		t.Fatalf("unexpected protected error: %s", got)
+	}
+	if unredacted := outputError(detailed, false, "protected corpus validation failed"); !errors.Is(unredacted, detailed) {
+		t.Fatalf("default mode did not retain detailed error: %s", unredacted)
 	}
 }

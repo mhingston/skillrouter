@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -56,19 +57,15 @@ func main() {
 	cases, err := sreval.LoadJSONL(file)
 	_ = file.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(outputError(err, *aggregateOnly, "protected corpus validation failed"))
 	}
 
 	snapshot, err := catalog.Load(dirs, catalog.DefaultMaxFileBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, testCase := range cases {
-		for _, name := range testCase.Relevant {
-			if _, ok := snapshot.Skills[name]; !ok {
-				log.Fatalf("corpus case %s references unknown skill %q", testCase.ID, name)
-			}
-		}
+	if err := validateRelevantSkills(cases, snapshot.Skills); err != nil {
+		log.Fatal(outputError(err, *aggregateOnly, "protected corpus validation failed"))
 	}
 	var embedder search.Embedder
 	if *embeddingURL != "" || *embeddingModel != "" {
@@ -87,7 +84,7 @@ func main() {
 	}
 	report, err := sreval.Run(index, cases, *limit)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(outputError(err, *aggregateOnly, "protected evaluation failed"))
 	}
 
 	printSummary(report, *aggregateOnly)
@@ -100,6 +97,24 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+func validateRelevantSkills(cases []sreval.Case, skills map[string]catalog.Skill) error {
+	for _, testCase := range cases {
+		for _, name := range testCase.Relevant {
+			if _, ok := skills[name]; !ok {
+				return fmt.Errorf("corpus case %s references unknown skill %q", testCase.ID, name)
+			}
+		}
+	}
+	return nil
+}
+
+func outputError(err error, aggregateOnly bool, publicMessage string) error {
+	if aggregateOnly {
+		return errors.New(publicMessage)
+	}
+	return err
 }
 
 func printSummary(report sreval.Report, aggregateOnly bool) {

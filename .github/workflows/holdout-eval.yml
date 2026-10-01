@@ -1,0 +1,56 @@
+name: Protected holdout evaluation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/skillrouter-eval/**'
+      - 'internal/catalog/**'
+      - 'internal/search/**'
+      - 'internal/eval/**'
+      - 'eval/holdout.jsonl'
+      - 'eval/holdout-manifest.json'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/holdout-eval.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-holdout-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lexical:
+    runs-on: ubuntu-latest
+    environment: protected-evaluation
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned catalogue revision
+        id: holdout
+        run: echo "catalog_commit=$(jq -er '.catalog_commit' eval/holdout-manifest.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: mhingston/agent-skills
+          ref: ${{ steps.holdout.outputs.catalog_commit }}
+          path: _eval/agent-skills
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - name: Verify holdout contract
+        run: go test ./eval ./cmd/skillrouter-eval ./internal/eval
+      - name: Run protected lexical holdout
+        run: |
+          go run ./cmd/skillrouter-eval \
+            --skills-dir _eval/agent-skills \
+            --corpus eval/holdout.jsonl \
+            --aggregate-only \
+            --json-out holdout-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexical-holdout-summary
+          path: holdout-results.json
+          retention-days: 30

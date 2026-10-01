@@ -296,6 +296,8 @@ Current lexical development baseline:
 
 The evaluation also exposed an important current limitation: **the baseline retriever does not yet have a calibrated abstention mechanism**, so unrelated tasks can still receive candidates. This is tracked as a retrieval problem rather than hidden by the API.
 
+A separate 12-case holdout protects final comparisons from routine development iteration. Pull requests run the 74-case development corpus with full diagnostics; the protected workflow runs only after merge to `main` or explicit dispatch and publishes aggregate metrics without case-level queries, labels, rankings, or misses. It documents the current zero-abstention result without adding an abstention mechanism.
+
 See [`eval/README.md`](eval/README.md) for methodology, no-match metrics, latency measurements and how to run the benchmark.
 
 ```bash
@@ -364,6 +366,8 @@ go run ./cmd/skillrouter-eval \
   --skills-dir /path/to/agent-skills \
   --corpus eval/corpus.jsonl
 ```
+
+The protected holdout is intentionally not part of the pull-request feedback loop. See [`eval/README.md`](eval/README.md) for ownership, reporting, and rotation rules.
 
 ## Project direction
 

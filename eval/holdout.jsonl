@@ -1,0 +1,12 @@
+{"id":"holdout-001","query":"Before changing our automated review rubric, examine whether the signals it has produced across earlier reviews still separate useful findings from noise.","relevant":["review-calibration"]}
+{"id":"holdout-002","query":"This proposal looks new, but I suspect we ruled out the same trade-off last quarter. Recover the governing decision and check whether its assumptions still hold.","relevant":["decision-continuity"]}
+{"id":"holdout-003","query":"Coordinate several coding workers in parallel, join their outputs, persist progress between stages, and cap any retry cycle.","relevant":["dynamic-workflows"]}
+{"id":"holdout-004","query":"Give future coding agents a repeatable way to start the real application, exercise one user journey, retain proof of the result, and restore the environment afterwards.","relevant":["project-verification"]}
+{"id":"holdout-005","query":"Use the commit record to identify files that repeatedly attract corrective changes and focus an unfamiliar-codebase investigation there.","relevant":["git-archaeologist"]}
+{"id":"holdout-006","query":"Bring together current build failures, open change activity, incidents, and promised work to identify the few engineering items requiring intervention today.","relevant":["engineering-attention"]}
+{"id":"holdout-007","query":"Move an ageing service onto the supported platform through a representative pilot, explicit equivalence evidence, and a controlled promotion decision.","relevant":["code-modernization"]}
+{"id":"holdout-008","query":"Inspect the team's durable knowledge store for obsolete entries, duplicated claims, unresolved contradictions, and assertions whose sources can no longer be trusted.","relevant":["memory-maintenance"]}
+{"id":"holdout-009","query":"Compare current fixed-rate household electricity tariffs and estimate which would cost least for 4200 kWh a year.","relevant":[]}
+{"id":"holdout-010","query":"Create a seven-day vegetarian dinner plan for two adults and a child, including one consolidated shopping list.","relevant":[]}
+{"id":"holdout-011","query":"Find indoor activities near Swindon suitable for a six-year-old during the next school holiday.","relevant":[]}
+{"id":"holdout-012","query":"Explain how to prune this apple tree and which month is safest for doing it in southern England.","relevant":[]}
